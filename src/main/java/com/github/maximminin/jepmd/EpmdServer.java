@@ -19,7 +19,6 @@
 package com.github.maximminin.jepmd;
 
 import java.io.IOException;
-import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -99,14 +98,18 @@ public class EpmdServer extends Thread {
                 ClientThread ct = new ClientThread(++cnt, socket, nodes, port);
                 ct.start();
             }
-        }catch(BindException e){
+        }catch (IOException e) {
             e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (RuntimeException e){
-            e.printStackTrace();
-        }
+        } 
 
+    }
+    
+    public static void main(String[] args){
+    	if(args.length == 1){
+    		EpmdServer.startEpmd(Integer.valueOf(args[0]));
+    	}else{
+    		EpmdServer.startEpmd();
+    	}
     }
     
 }

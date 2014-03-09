@@ -23,11 +23,12 @@ import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import com.ericsson.otp.erlang.OtpErlangDecodeException;
 import com.ericsson.otp.erlang.OtpInputStream;
 import com.ericsson.otp.erlang.OtpOutputStream;
 
-
 public class ClientThread extends Thread{
+	
 	private int id;
 	private Socket socket;
 	private Nodes nodes;
@@ -71,17 +72,16 @@ public class ClientThread extends Thread{
 		            }
 		            if(nodes.getNode(name)==null){
 		                log("New Node: "+name+" on "+port);
-		                nodes.addNode(name, new Node(name, port, ntype, proto, distHigh, distLow, id, socket));
+		                nodes.addNode(name, new Node(name, port, ntype, proto,
+		                		distHigh, distLow, id, socket));
 		                sendAlifeResponse(0, id);
 		                while(socket.getInputStream().read()!=-1){
 		                    //TODO: ???
 		                }
 		                nodes.deleteNode(name);
 		                log("Node: "+name+ " disconnected");
-		                socket.close();
 		            }else{
                         sendAlifeResponse(1, id);
-                        socket.close();
 		            }
 		    }else if(response==EpmdServer.PORT_REQUEST_ID){
 		        String name="";
@@ -91,10 +91,8 @@ public class ClientThread extends Thread{
 		            count--;
 		        }
                 sendNodeInfo( nodes.getNode(name));
-                socket.close();
             }else if(response == EpmdServer.NAMES_REQUEST_ID){
                 sendNodesInfo();
-                socket.close();
             }else if (response == EpmdServer.KILL_REQUEST_ID || 
                       response == EpmdServer.STOP_REQUEST_ID){
                 int legthObBody = ibuf.read4BE();
@@ -102,13 +100,17 @@ public class ClientThread extends Thread{
                 while (count>0){
                     ibuf.read1();
                 }
+                //TODO No stop if, some nodes are already registered.
                 EpmdServer.stopEpmd();
             }else{
                 log("Unknown request is ignored");
-                socket.close();
             }
-		} catch (Exception e) {
-			e.printStackTrace();
+		    ibuf.close();
+		    socket.close();
+		} catch (IOException e) {
+			log("IOproblem: " + e);
+		} catch (OtpErlangDecodeException e){
+			log("Decodingproblem: " + e);
 		}
 	}
     	
@@ -118,6 +120,7 @@ public class ClientThread extends Thread{
         obuf.write1(result);
         obuf.write2BE(1);
         obuf.writeTo(socket.getOutputStream());
+        obuf.close();
 	}
 	
 	private void sendNodeInfo(Node node)throws IOException{
@@ -139,6 +142,7 @@ public class ClientThread extends Thread{
             obuf.write1(1L);
 	    }
 	    obuf.writeTo(socket.getOutputStream());
+	    obuf.close();
 
 	}
 	
@@ -153,8 +157,10 @@ public class ClientThread extends Thread{
             obuf.write1(10);
         }
         obuf.writeTo(socket.getOutputStream());
+        obuf.close();
 	    
 	}
+	
 	private SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss dd-MM-yyyy");
 	
 	private void log(String message){
